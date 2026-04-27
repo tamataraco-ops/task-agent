@@ -66,9 +66,17 @@ client.on('messageCreate', async (msg) => {
     await msg.reply([
       '**タスク管理Bot の使い方**',
       '```',
-      'タスク名 / 依頼者 / M/D HH:MM / URL(省略可)',
+      'タスク名',
+      '依頼者（省略可）',
+      '5/10 15:00（期限・省略可）',
+      'https://...（URL・省略可）',
       '```',
-      '例：`議事録作成 / 田中さん / 5/10 15:00`',
+      '例：',
+      '```',
+      '議事録作成',
+      '田中さん',
+      '5/10 15:00',
+      '```',
       '',
       '**コマンド**',
       '`!tasks` — 未処理タスク一覧',
@@ -101,11 +109,13 @@ client.on('messageCreate', async (msg) => {
   const task = parseTask(text);
   if (!task) {
     await msg.reply([
-      '❌ 書式が正しくありません。',
+      '❌ 1行目にタスク名を入力してください。',
       '```',
-      'タスク名 / 依頼者 / M/D HH:MM / URL(省略可)',
+      'タスク名',
+      '依頼者（省略可）',
+      '5/10 15:00（期限・省略可）',
+      'https://...（URL・省略可）',
       '```',
-      '例：`議事録作成 / 田中さん / 5/10 15:00`',
       '`!help` でヘルプを表示できます。',
     ].join('\n'));
     return;
@@ -124,25 +134,31 @@ client.on('messageCreate', async (msg) => {
   );
 });
 
-// ── パース ────────────────────────────────────────────────────
+// ── パース（改行区切り） ─────────────────────────────────────
+// 書式:
+//   タスク名        ← 1行目 必須
+//   依頼者          ← 2行目 省略可
+//   5/10 15:00      ← 日付っぽい行 省略可
+//   https://...     ← httpで始まる行 省略可
 function parseTask(text) {
-  const parts = text.split('/').map((s) => s.trim());
-  if (!parts[0]) return null;
-  const name = parts[0];
-  const requester = parts[1] || '';
-  let deadline = null, url = '';
+  const lines = text.split(/\n/).map((s) => s.trim()).filter(Boolean);
+  if (!lines[0]) return null;
+  const name = lines[0];
+  let requester = '', deadline = null, url = '';
 
-  for (let i = 2; i < parts.length; i++) {
-    const p = parts[i];
-    if (p.startsWith('http')) { url = p; continue; }
-    const m = p.match(/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+  for (let i = 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.startsWith('http')) { url = l; continue; }
+    const m = l.match(/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
     if (m) {
       const now = new Date();
       deadline = new Date(
         now.getFullYear(), +m[1] - 1, +m[2],
         m[3] ? +m[3] : 23, m[4] ? +m[4] : 59, 0
       ).toISOString();
+      continue;
     }
+    if (!requester) requester = l;
   }
   return { name, requester, deadline, url, done: false, reminded: false, last_overdue: null };
 }
