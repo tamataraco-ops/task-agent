@@ -62,7 +62,7 @@ client.on('messageCreate', async (msg) => {
     return;
   }
 
-  if (text === '!help') {
+  if (text === '!c' || text === '!help') {
     await msg.reply([
       '**タスク管理Bot の使い方**',
       '```',
@@ -84,7 +84,7 @@ client.on('messageCreate', async (msg) => {
       '**コマンド**',
       '`!tasks` — 未処理タスク一覧',
       '`!done 1` — 1番のタスクを完了にする',
-      '`!help` — このヘルプ',
+      '`!c` / `!help` — このコマンド一覧',
     ].join('\n'));
     return;
   }
