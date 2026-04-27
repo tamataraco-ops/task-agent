@@ -40,6 +40,8 @@ client.on('messageCreate', async (msg) => {
 
   const text = msg.content.trim();
   if (!text || text.startsWith('#')) return;
+  // !で始まる1行メッセージはタスク登録対象外（コマンド処理後もガード）
+  const isCommand = /^![a-zA-Z]/.test(text);
 
   // ── コマンド ────────────────────────────────────────────────
   if (text === '!tasks' || text === '!list') {
@@ -109,6 +111,10 @@ client.on('messageCreate', async (msg) => {
   }
 
   // ── タスク登録 ───────────────────────────────────────────────
+  if (isCommand) {
+    await msg.reply('❓ 不明なコマンドです。`!c` でコマンド一覧を確認してください。');
+    return;
+  }
   const task = parseTask(text);
   if (!task) {
     await msg.reply([
