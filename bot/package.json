@@ -1,0 +1,18 @@
+{
+  "name": "task-agent-bot",
+  "version": "1.0.0",
+  "description": "Discord Bot for task management",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "@supabase/supabase-js": "^2.39.0",
+    "node-cron": "^3.0.3",
+    "express": "^4.18.2"
+  }
+}
