@@ -187,7 +187,10 @@ function parseTask(text) {
       const tm = timeStr.match(/^(\d{1,2}):(\d{2})$/);
       hour = +tm[1]; min = +tm[2];
     }
-    deadline = new Date(year, month, day, hour, min, 0).toISOString();
+    // RenderサーバーはUTC動作のため、JST(UTC+9)として扱い9時間分オフセット
+    const jstOffset = 9 * 60; // 分
+    const localMs = Date.UTC(year, month, day, hour, min, 0) - jstOffset * 60 * 1000;
+    deadline = new Date(localMs).toISOString();
   }
 
   return { name, requester, deadline, url, done: false, reminded: false, last_overdue: null };
