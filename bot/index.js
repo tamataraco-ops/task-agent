@@ -68,14 +68,17 @@ client.on('messageCreate', async (msg) => {
       '```',
       'タスク名',
       '依頼者（省略可）',
-      '5/10 15:00（期限・省略可）',
+      'yyyy/m/d または m/d（日付・省略可）',
+      'hh:mm（時刻・省略可）',
       'https://...（URL・省略可）',
       '```',
       '例：',
       '```',
       '議事録作成',
       '田中さん',
-      '5/10 15:00',
+      '2026/5/10',
+      '15:00',
+      'https://example.com',
       '```',
       '',
       '**コマンド**',
@@ -113,7 +116,8 @@ client.on('messageCreate', async (msg) => {
       '```',
       'タスク名',
       '依頼者（省略可）',
-      '5/10 15:00（期限・省略可）',
+      'yyyy/m/d または m/d（日付・省略可）',
+      'hh:mm（時刻・省略可）',
       'https://...（URL・省略可）',
       '```',
       '`!help` でヘルプを表示できます。',
@@ -140,26 +144,52 @@ client.on('messageCreate', async (msg) => {
 //   依頼者          ← 2行目 省略可
 //   5/10 15:00      ← 日付っぽい行 省略可
 //   https://...     ← httpで始まる行 省略可
+// 書式（改行区切り）:
+//   タスク名           ← 必須
+//   依頼者             ← 省略可
+//   yyyy/m/d または m/d ← 省略可
+//   hh:mm              ← 省略可（日付行の次に書く）
+//   https://...        ← 省略可
 function parseTask(text) {
   const lines = text.split(/\n/).map((s) => s.trim()).filter(Boolean);
   if (!lines[0]) return null;
   const name = lines[0];
-  let requester = '', deadline = null, url = '';
+  let requester = '', url = '';
+  let dateStr = null, timeStr = null;
 
   for (let i = 1; i < lines.length; i++) {
     const l = lines[i];
+
+    // URL
     if (l.startsWith('http')) { url = l; continue; }
-    const m = l.match(/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
-    if (m) {
-      const now = new Date();
-      deadline = new Date(
-        now.getFullYear(), +m[1] - 1, +m[2],
-        m[3] ? +m[3] : 23, m[4] ? +m[4] : 59, 0
-      ).toISOString();
-      continue;
-    }
+
+    // 時刻のみ: hh:mm
+    const timeOnly = l.match(/^(\d{1,2}):(\d{2})$/);
+    if (timeOnly) { timeStr = l; continue; }
+
+    // 日付: yyyy/m/d または m/d
+    const dateMatch = l.match(/^(?:(\d{4})\/)?(\d{1,2})\/(\d{1,2})$/);
+    if (dateMatch) { dateStr = l; continue; }
+
+    // 依頼者（上記どれにも当たらない最初の行）
     if (!requester) requester = l;
   }
+
+  let deadline = null;
+  if (dateStr) {
+    const dm = dateStr.match(/^(?:(\d{4})\/)?(\d{1,2})\/(\d{1,2})$/);
+    const now = new Date();
+    const year  = dm[1] ? +dm[1] : now.getFullYear();
+    const month = +dm[2] - 1;
+    const day   = +dm[3];
+    let hour = 23, min = 59;
+    if (timeStr) {
+      const tm = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+      hour = +tm[1]; min = +tm[2];
+    }
+    deadline = new Date(year, month, day, hour, min, 0).toISOString();
+  }
+
   return { name, requester, deadline, url, done: false, reminded: false, last_overdue: null };
 }
 
