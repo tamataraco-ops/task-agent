@@ -104,6 +104,24 @@ body{min-height:100dvh;max-width:720px;margin:0 auto;padding:0 0 160px;}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
 .loading{text-align:center;padding:32px;font-family:var(--mono);font-size:12px;color:var(--text3);}
+/* 編集ボタン */
+.ebtn{width:27px;height:27px;border-radius:6px;border:1px solid transparent;background:transparent;cursor:pointer;color:var(--text3);font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;}
+.ebtn:hover{background:var(--accent-dim);color:var(--accent);border-color:rgba(232,255,107,0.2);}
+/* モーダル */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;width:100%;max-width:480px;padding:22px;}
+.modal-h{font-size:15px;font-weight:600;margin-bottom:18px;color:var(--text);}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.modal-full{grid-column:1/-1;}
+.modal-lbl{font-size:11px;font-family:var(--mono);color:var(--text2);margin-bottom:5px;}
+.mi-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--sans);color:var(--text);outline:none;transition:border-color .15s;}
+.mi-input:focus{border-color:rgba(232,255,107,0.4);}
+.mi-input::placeholder{color:var(--text3);}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.modal-cancel{background:transparent;border:1px solid var(--border2);border-radius:8px;padding:8px 18px;font-size:13px;font-family:var(--sans);color:var(--text2);cursor:pointer;}
+.modal-cancel:hover{border-color:var(--text2);color:var(--text);}
+.modal-save{background:var(--accent);color:#0f0f0f;border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;font-family:var(--sans);cursor:pointer;}
+.modal-save:hover{opacity:.88;}
 </style>
 </head>
 <body>
@@ -182,6 +200,35 @@ body{min-height:100dvh;max-width:720px;margin:0 auto;padding:0 0 160px;}
 
 </div>
 
+<!-- 編集モーダル -->
+<div class="modal-overlay" id="editModal" style="display:none" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-h">タスクを編集</div>
+    <div class="modal-grid">
+      <div class="modal-full">
+        <div class="modal-lbl">タスク名 *</div>
+        <input class="mi-input" id="eName" placeholder="タスク名" />
+      </div>
+      <div>
+        <div class="modal-lbl">依頼者</div>
+        <input class="mi-input" id="eReq" placeholder="田中さん" />
+      </div>
+      <div>
+        <div class="modal-lbl">期限</div>
+        <input class="mi-input" id="eDue" type="datetime-local" />
+      </div>
+      <div class="modal-full">
+        <div class="modal-lbl">参考URL</div>
+        <input class="mi-input" id="eUrl" type="url" placeholder="https://..." />
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="modal-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="modal-save" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- スマホ用フォーム -->
 <div class="bottom">
   <div class="bg">
@@ -253,7 +300,7 @@ function st(t){
 }
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-function renderAll(tasks){
+function renderAll(tasks){ cachedTasks = tasks;
   const active=tasks.filter(t=>!t.done),done=tasks.filter(t=>t.done);
   const ov=active.filter(t=>t.deadline&&new Date(t.deadline)<new Date());
   document.getElementById('totalB').textContent=active.length+'件';
@@ -281,10 +328,55 @@ function renderList(tasks,id){
         </div>
         ${t.url?`<a class="turl" href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.url)}</a>`:''}
       </div>
+      <button class="ebtn" onclick="openEdit('${t.id}')">✎</button>
       <button class="dbtn" onclick="deleteTask('${t.id}')">✕</button>
     </div>`;
   }).join('');
 }
+// ── 編集モーダル ─────────────────────────────────────────────
+let editingId = null;
+let cachedTasks = [];
+
+function openEdit(id) {
+  const t = cachedTasks.find(t => t.id === id);
+  if (!t) return;
+  editingId = id;
+  document.getElementById('eName').value = t.name || '';
+  document.getElementById('eReq').value = t.requester || '';
+  document.getElementById('eUrl').value = t.url || '';
+  // deadline(ISO) → datetime-local形式に変換
+  if (t.deadline) {
+    const d = new Date(t.deadline);
+    const pad = n => String(n).padStart(2,'0');
+    document.getElementById('eDue').value =
+      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    document.getElementById('eDue').value = '';
+  }
+  document.getElementById('editModal').style.display = 'flex';
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('editModal')) return;
+  document.getElementById('editModal').style.display = 'none';
+  editingId = null;
+}
+async function saveEdit() {
+  const name = document.getElementById('eName').value.trim();
+  if (!name) { alert('タスク名を入力してください。'); return; }
+  const dueVal = document.getElementById('eDue').value;
+  const updates = {
+    name,
+    requester: document.getElementById('eReq').value.trim(),
+    deadline: dueVal ? new Date(dueVal).toISOString() : null,
+    url: document.getElementById('eUrl').value.trim(),
+    reminded: false, // 期限変更時にリマインドをリセット
+  };
+  const { error } = await sb.from('tasks').update(updates).eq('id', editingId);
+  if (error) { alert('保存失敗: ' + error.message); return; }
+  document.getElementById('editModal').style.display = 'none';
+  editingId = null;
+}
+
 function showNotify(msg){const el=document.getElementById('notify');el.textContent='⚠ '+msg;el.style.display='block';setTimeout(()=>el.style.display='none',8000);}
 function switchTab(tab,btn){
   currentTab=tab;
