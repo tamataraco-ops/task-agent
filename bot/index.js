@@ -203,8 +203,9 @@ function parseTask(text) {
 }
 
 function fmtDate(iso) {
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  // RenderサーバーはUTCのためJST(+9)に変換して表示
+  const d = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 // ── Webhook送信 ───────────────────────────────────────────────
